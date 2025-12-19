@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     build: ./db
@@ -13,7 +11,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready --quiet -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready --quiet -U postgres -d news_db"] # Updated to manual values as .env vars are not accessible here
       interval: 10s
       timeout: 5s
       retries: 5

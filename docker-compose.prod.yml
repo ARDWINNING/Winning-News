@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     build: ./db
@@ -11,7 +9,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready --quiet -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready --quiet -U postgres -d news_db"] # Update these when in prod do not push
       interval: 10s
       timeout: 5s
       retries: 5
