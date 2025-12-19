@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS news_organisations (
 -- Writer profiles table
 CREATE TABLE IF NOT EXISTS writer_profiles (
   user_id UUID PRIMARY KEY REFERENCES users(id),
-  org_id UUID REFERENCES news_organisations(org_id) NOT NULL ON DELETE RESTRICT, -- 15 char max length
+  org_id UUID NOT NULL REFERENCES news_organisations(org_id) ON DELETE RESTRICT, -- 15 char max length
   bio TEXT, -- brief biography of the writer
   profile_image_url TEXT -- referential URL pointing to image hosting solution
 );
