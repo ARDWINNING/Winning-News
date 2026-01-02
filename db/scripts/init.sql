@@ -2,14 +2,34 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 Create EXTENSION IF NOT EXISTS "citext";
 
 -- Enums
-CREATE TYPE user_role AS ENUM ('reader', 'writer', 'editor', 'admin');
 CREATE TYPE user_status AS ENUM ('active', 'pending_verification', 'banned');
 CREATE TYPE article_category AS ENUM ('Politics', 'Technology', 'Health', 'Sports', 'Entertainment', 'Business', 'Science', 'World');
+
+-- Roles table
+CREATE TABLE IF NOT EXISTS roles (
+  role_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  role_name CITEXT UNIQUE NOT NULL, -- e.g., 'admin', 'editor', 'writer'
+  descr TEXT -- brief description of the role
+);
+
+-- Permissions table
+CREATE TABLE IF NOT EXISTS perms (
+  perm_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  perm_code CITEXT UNIQUE NOT NULL, -- permission code e.g., 'article.create', 'user.edit'
+  descr TEXT -- what the permission allows
+);
+
+-- Role permissions
+CREATE TABLE IF NOT EXISTS role_perms (
+  role_id UUID NOT NULL REFERENCES roles(role_id) ON DELETE CASCADE,
+  perm_id UUID NOT NULL REFERENCES perms(perm_id) ON DELETE CASCADE,
+  PRIMARY KEY (role_id, perm_id)
+);
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   -- Primary Key
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   -- User Info
   email CITEXT UNIQUE NOT NULL CHECK (char_length(email) <= 254), -- RFC 3696 compliant
   username CITEXT UNIQUE NOT NULL CHECK (char_length(username) <= 15), -- 1.1Mn^15 possible usernames
@@ -19,7 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash bytea NOT NULL, -- 32 bytes argon2id manual output
   password_salt bytea NOT NULL, -- 32 bytes salt 2^256 possible salts
   -- Roles & Types
-  user_type user_role NOT NULL DEFAULT 'reader', -- user roles enumerated above
+  user_role UUID NOT NULL REFERENCES roles(role_id), -- user roles enumerated above
   status_type user_status NOT NULL DEFAULT 'pending_verification',
   -- Timestamps
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -31,12 +51,13 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS news_organisations (
   org_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_name CITEXT UNIQUE NOT NULL, -- to appear underneath writer name
+  org_desc TEXT, -- brief description of the organisation
   website_url TEXT -- to make it clickable on articles
 );
 
 -- Writer profiles table
 CREATE TABLE IF NOT EXISTS writer_profiles (
-  user_id UUID PRIMARY KEY REFERENCES users(id),
+  user_id UUID PRIMARY KEY REFERENCES users(user_id),
   org_id UUID NOT NULL REFERENCES news_organisations(org_id) ON DELETE RESTRICT, -- 15 char max length
   bio TEXT, -- brief biography of the writer
   profile_image_url TEXT -- referential URL pointing to image hosting solution
@@ -46,12 +67,12 @@ CREATE TABLE IF NOT EXISTS writer_profiles (
 CREATE TABLE IF NOT EXISTS articles (
   -- IDs
   article_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  writer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  writer_id UUID NOT NULL REFERENCES writer_profiles(user_id) ON DELETE CASCADE,
   -- Article header
   title VARCHAR(80) NOT NULL, -- Capped at 80 chars for better readability
   slug CITEXT UNIQUE NOT NULL CHECK (char_length(slug) <= 80), -- unique URL friendly title max 80 char
   category article_category NOT NULL, -- enumerated categories
-  tags TEXT[], -- array of tags for better searchability
+  tags CITEXT[], -- array of tags for better searchability
   featured_image_url TEXT, -- referential URL pointing to image hosting solution
   -- Article body
   excerpt TEXT, -- may delete later if not needed
@@ -63,19 +84,24 @@ CREATE TABLE IF NOT EXISTS articles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Media table
+CREATE TABLE IF NOT EXISTS media (
+    media_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    article_id UUID NOT NULL REFERENCES articles(article_id) ON DELETE CASCADE, -- FK to articles
+    url TEXT NOT NULL,
+    mime_type TEXT NOT NULL, -- e.g., 'image/jpeg', 'image/png'
+    alt_text TEXT, -- accessibility
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Sessions table
 CREATE TABLE IF NOT EXISTS user_sessions (
   session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
   -- session token is not saved only sent to user in httponly cookie
   token_hash bytea UNIQUE NOT NULL, -- 32 bytes derived from a sha-256 hash of session token
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   expires_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP + INTERVAL '24 hours' -- reset as needed
-);
-
-CREATE TABLE IF NOT EXISTS permissions (
-  user_type user_role PRIMARY KEY,
-  perm_codes TEXT[] NOT NULL -- array of permission codes associated with the role
 );
 
 -- Trigger functions
@@ -111,5 +137,5 @@ CREATE INDEX idx_articles_writer ON articles(writer_id);
 CREATE INDEX idx_articles_published ON articles(is_published, published_at DESC);
 CREATE INDEX idx_articles_category ON articles(category, published_at DESC);
 CREATE INDEX idx_articles_tags ON articles USING GIN(tags);
+CREATE INDEX idx_media_article ON media(article_id);
 CREATE INDEX idx_sessions_user ON user_sessions(user_id);
-CREATE INDEX idx_sessions_expiry ON user_sessions(expires_at) WHERE expires_at < CURRENT_TIMESTAMP;
