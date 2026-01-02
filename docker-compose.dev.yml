@@ -21,8 +21,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: news-backend
-    env_file:
-      - ./backend/.env.dev
+    environment:
+      - ENV=dev
     depends_on:
       db:
         condition: service_healthy

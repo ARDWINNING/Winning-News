@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS articles (
   writer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   -- Article header
   title VARCHAR(80) NOT NULL, -- Capped at 80 chars for better readability
-  slug CITEXT UNIQUE NOT NULL CHECK (char_length(slug) <= 20), -- unique URL friendly title max 20 char
+  slug CITEXT UNIQUE NOT NULL CHECK (char_length(slug) <= 80), -- unique URL friendly title max 80 char
   category article_category NOT NULL, -- enumerated categories
   tags TEXT[], -- array of tags for better searchability
   featured_image_url TEXT, -- referential URL pointing to image hosting solution
@@ -67,10 +67,15 @@ CREATE TABLE IF NOT EXISTS articles (
 CREATE TABLE IF NOT EXISTS user_sessions (
   session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  -- session token is not saved only sent to user in cookie
+  -- session token is not saved only sent to user in httponly cookie
   token_hash bytea UNIQUE NOT NULL, -- 32 bytes derived from a sha-256 hash of session token
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP + INTERVAL '24 hours' -- set as needed
+  expires_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP + INTERVAL '24 hours' -- reset as needed
+);
+
+CREATE TABLE IF NOT EXISTS permissions (
+  user_type user_role PRIMARY KEY,
+  perm_codes TEXT[] NOT NULL -- array of permission codes associated with the role
 );
 
 -- Trigger functions
@@ -101,12 +106,10 @@ FOR EACH ROW
 EXECUTE FUNCTION articles_updated_at();
 
 -- Indexes
-CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_writers_org ON writer_profiles(org_id);
 CREATE INDEX idx_articles_writer ON articles(writer_id);
-CREATE INDEX idx_articles_title ON articles(title);
-CREATE INDEX idx_articles_slug ON articles(slug);
-CREATE INDEX idx_articles_category ON articles(category);
+CREATE INDEX idx_articles_published ON articles(is_published, published_at DESC);
+CREATE INDEX idx_articles_category ON articles(category, published_at DESC);
 CREATE INDEX idx_articles_tags ON articles USING GIN(tags);
-CREATE INDEX idx_articles_time ON articles(published_at);
-CREATE INDEX idx_sessions_expiry ON user_sessions(expires_at);
+CREATE INDEX idx_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_sessions_expiry ON user_sessions(expires_at) WHERE expires_at < CURRENT_TIMESTAMP;

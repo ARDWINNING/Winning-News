@@ -2,8 +2,8 @@ services:
   db:
     build: ./db
     container_name: news-db
-    env_file:
-      - ./db/.env.production
+    environment:
+      - ENV=production
     volumes:
       - db_data:/var/lib/postgresql/data
     networks:
