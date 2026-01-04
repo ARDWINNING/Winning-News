@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 Create EXTENSION IF NOT EXISTS "citext";
 
 -- Enums
-CREATE TYPE user_status AS ENUM ('active', 'pending_verification', 'banned');
+CREATE TYPE user_status AS ENUM ('active', 'pending_verification', 'banned', 'deleted');
 CREATE TYPE article_category AS ENUM ('Politics', 'Technology', 'Health', 'Sports', 'Entertainment', 'Business', 'Science', 'World');
 
 -- Roles table
@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- updated via trigger on row update
   last_login TIMESTAMPTZ
+  deleted_at TIMESTAMPTZ
 );
 
 -- News_Organisations table
