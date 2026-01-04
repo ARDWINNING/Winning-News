@@ -1,3 +1,5 @@
+from uuid import UUID
+from contextlib import asynccontextmanager
 import asyncpg
 from settings import DB_DSN
 
@@ -20,20 +22,58 @@ class Database:
             await self.pool.close()
             self.pool = None
 
+    @asynccontextmanager
+    async def transaction(self):
+        connection = await self.pool.acquire()
+        try:
+            tx = connection.transaction()
+            await tx.start()
+            yield connection
+            await tx.commit()
+        except:
+            await tx.rollback()
+            raise
+        finally:
+            await self.pool.release(connection)
+    
+    # Non-transactional Operations
+    async def fetch_value(self, sql: str, params: tuple | None = None) -> str | int | bool | UUID | bytes | None:
+        self.safe()
+        params = params or ()
+        async with self.pool.acquire() as connection:
+            return await connection.fetchval(sql, *params)
+
     async def fetch_one(self, sql: str, params: tuple | None = None) -> dict | None:
         self.safe()
+        params = params or ()
         async with self.pool.acquire() as connection:
-            row = await connection.fetchrow(sql, *params) if params else await connection.fetchrow(sql)
-            return dict(row) if row else None 
+            return await connection.fetchrow(sql, *params) 
 
     async def fetch_all(self, sql: str, params: tuple | None = None) -> list[dict]:
         self.safe()
+        params = params or ()
         async with self.pool.acquire() as connection:
-            rows = await connection.fetch(sql, *params) if params else await connection.fetch(sql)
-            return [dict(row) for row in rows]
+            return await connection.fetch(sql, *params)
     
     async def execute(self, sql: str, params: tuple | None = None) -> str:
         self.safe()
+        params = params or ()
         async with self.pool.acquire() as connection:
-            result = await connection.execute(sql, *params) if params else await connection.execute(sql)
-            return result
+            return await connection.execute(sql, *params)
+        
+    # Transactional Operations
+    async def fetch_value_tx(self, connection, sql: str, params: tuple | None = None) -> str | int | bool | UUID | bytes | None:
+        params = params or ()
+        return await connection.fetchval(sql, *params)
+    
+    async def fetch_one_tx(self, connection , sql: str, params: tuple | None = None) -> dict | None:
+        params = params or ()
+        return await connection.fetchrow(sql, *params)
+    
+    async def fetch_all_tx(self, connection, sql: str, params: tuple | None = None) -> list[dict]:
+        params = params or ()
+        return await connection.fetch(sql, *params)
+    
+    async def execute_tx(self, connection, sql: str, params: tuple | None = None) -> str:
+        params = params or ()
+        return await connection.execute(sql, *params)
