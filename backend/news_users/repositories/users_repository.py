@@ -14,7 +14,10 @@ from .queries import (
     UPDATE_NAME,
     CREATE_USER,
     SOFT_DELETE,
-    HARD_DELETE
+    HARD_DELETE,
+    LIST_USERS,
+    LIST_USERS_ROLE,
+    COUNT_USERS
 )
 
 class UserRepository:
@@ -97,3 +100,18 @@ class UserRepository:
     async def hard_delete_user_conn(self, connection: asyncpg.Connection, user_id: UUID) -> None:
         await self.db.execute_conn(connection, HARD_DELETE, (user_id,))
     
+    # Pagination Operation
+    async def list_users(self, limit: int, offset: int) -> list[User]:
+        results = await self.db.fetch_all(LIST_USERS, (limit, offset))
+        return [self._to_user(row) for row in results]
+    
+    async def list_users_by_role(self, role_id: UUID, limit: int, offset: int) -> list[User]:
+        results = await self.db.fetch_all(LIST_USERS_ROLE, (role_id, limit, offset))
+        return [self._to_user(row) for row in results]
+    
+    async def count_users(self) -> int:
+        result = await self.db.fetch_value(COUNT_USERS)
+        return int(result) if result else 0
+    
+    # May need transactional versions of pagination and count methods
+    # May need the count to be accurate within a transaction for metadata purposes

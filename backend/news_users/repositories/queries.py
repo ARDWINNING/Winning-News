@@ -14,4 +14,6 @@ CREATE_USER = """
         """
 SOFT_DELETE = "UPDATE users SET status_type = 'deleted', deleted_at = CURRENT_TIMESTAMP WHERE user_id = $1"
 HARD_DELETE = "DELETE FROM users WHERE user_id = $1"
-    
+LIST_USERS = "SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2"
+LIST_USERS_ROLE = "SELECT * FROM users WHERE user_role = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3"
+COUNT_USERS = "SELECT COUNT(*) AS count FROM users"
