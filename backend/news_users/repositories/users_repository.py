@@ -1,7 +1,7 @@
 import asyncpg
 from news_backend.db import Database
 from uuid import UUID
-from news_users.model.user_model import User
+from news_users.data_classes.user_model import User
 
 from .queries import (
     GET_USER_BY_ID,
