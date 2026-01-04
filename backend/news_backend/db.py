@@ -47,13 +47,15 @@ class Database:
         self.safe()
         params = params or ()
         async with self.pool.acquire() as connection:
-            return await connection.fetchrow(sql, *params) 
+            row = await connection.fetchrow(sql, *params)
+            return dict(row) if row else None
 
     async def fetch_all(self, sql: str, params: tuple | None = None) -> list[dict]:
         self.safe()
         params = params or ()
         async with self.pool.acquire() as connection:
-            return await connection.fetch(sql, *params)
+            rows = await connection.fetch(sql, *params)
+            return [dict(r) for r in rows]
     
     async def execute(self, sql: str, params: tuple | None = None) -> str:
         self.safe()
@@ -62,18 +64,20 @@ class Database:
             return await connection.execute(sql, *params)
         
     # Transactional Operations
-    async def fetch_value_tx(self, connection, sql: str, params: tuple | None = None) -> str | int | bool | UUID | bytes | None:
+    async def fetch_value_conn(self, connection: asyncpg.Connection, sql: str, params: tuple | None = None) -> str | int | bool | UUID | bytes | None:
         params = params or ()
         return await connection.fetchval(sql, *params)
     
-    async def fetch_one_tx(self, connection , sql: str, params: tuple | None = None) -> dict | None:
+    async def fetch_one_conn(self, connection: asyncpg.Connection, sql: str, params: tuple | None = None) -> dict | None:
         params = params or ()
-        return await connection.fetchrow(sql, *params)
+        row = await connection.fetchrow(sql, *params)
+        return dict(row) if row else None
     
-    async def fetch_all_tx(self, connection, sql: str, params: tuple | None = None) -> list[dict]:
+    async def fetch_all_conn(self, connection: asyncpg.Connection, sql: str, params: tuple | None = None) -> list[dict]:
         params = params or ()
-        return await connection.fetch(sql, *params)
+        rows = await connection.fetch(sql, *params)
+        return [dict(r) for r in rows]
     
-    async def execute_tx(self, connection, sql: str, params: tuple | None = None) -> str:
+    async def execute_conn(self, connection: asyncpg.Connection, sql: str, params: tuple | None = None) -> str:
         params = params or ()
         return await connection.execute(sql, *params)
