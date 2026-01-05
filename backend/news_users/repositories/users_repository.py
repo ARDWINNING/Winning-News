@@ -13,8 +13,8 @@ from .queries import (
     UPDATE_ROLE,
     UPDATE_NAME,
     CREATE_USER,
-    SOFT_DELETE,
-    HARD_DELETE,
+    SOFT_DELETE_USER_BY_ID,
+    HARD_DELETE_USER_BY_ID,
     LIST_USERS,
     LIST_USERS_ROLE,
     COUNT_USERS
@@ -86,19 +86,19 @@ class UserRepository:
 
     # Soft Delete Operation
     async def delete_user(self, user_id: UUID) -> None:
-        await self.db.execute(SOFT_DELETE, (user_id,))
+        await self.db.execute(SOFT_DELETE_USER_BY_ID, (user_id,))
     
     # Transactional Soft Delete Operation
     async def delete_user_conn(self, connection: asyncpg.Connection, user_id: UUID) -> None:
-        await self.db.execute_conn(connection, SOFT_DELETE, (user_id,))
+        await self.db.execute_conn(connection, SOFT_DELETE_USER_BY_ID, (user_id,))
     
     # Hard Delete Operation
     async def hard_delete_user(self, user_id: UUID) -> None:
-        await self.db.execute(HARD_DELETE, (user_id,))
+        await self.db.execute(HARD_DELETE_USER_BY_ID, (user_id,))
     
     # Transactional Hard Delete Operation
     async def hard_delete_user_conn(self, connection: asyncpg.Connection, user_id: UUID) -> None:
-        await self.db.execute_conn(connection, HARD_DELETE, (user_id,))
+        await self.db.execute_conn(connection, HARD_DELETE_USER_BY_ID, (user_id,))
     
     # Pagination Operation
     async def list_users(self, limit: int, offset: int) -> list[User]:
