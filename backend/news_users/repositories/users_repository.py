@@ -6,7 +6,9 @@ from news_users.data_classes.user_model import User
 from .queries import (
     GET_USER_BY_ID,
     GET_USER_BY_EMAIL,
+    GET_USER_BY_USERNAME,
     UPDATE_EMAIL,
+    UPDATE_USERNAME,
     UPDATE_PASSWORD,
     UPDATE_LAST_LOGIN,
     UPDATE_STATUS,
@@ -17,7 +19,10 @@ from .queries import (
     HARD_DELETE_USER_BY_ID,
     LIST_USERS,
     LIST_USERS_ROLE,
-    COUNT_USERS
+    LIST_USERS_BY_STATUS,
+    COUNT_USERS,
+    COUNT_USERS_BY_ROLE,
+    SEARCH_USERS,
 )
 
 class UserRepository:
@@ -36,9 +41,16 @@ class UserRepository:
         result = await self.db.fetch_one(GET_USER_BY_EMAIL, (email,))
         return self._to_user(result)
     
+    async def get_user_by_username(self, username: str) -> User | None:
+        result = await self.db.fetch_one(GET_USER_BY_USERNAME, (username,))
+        return self._to_user(result)
+    
     # Update Operations
     async def update_user_email(self, user_id: UUID, new_email: str) -> None:
         await self.db.execute(UPDATE_EMAIL, (new_email, user_id))
+
+    async def update_user_username(self, user_id: UUID, new_username: str) -> None:
+        await self.db.execute(UPDATE_USERNAME, (new_username, user_id))
     
     async def update_user_password(self, user_id: UUID, new_password: bytes, new_salt: bytes) -> None:
         await self.db.execute(UPDATE_PASSWORD, (new_password, new_salt, user_id))
@@ -58,6 +70,9 @@ class UserRepository:
     # Transactional Update Operations
     async def update_user_email_conn(self, connection: asyncpg.Connection, user_id: UUID, new_email: str) -> None:
         await self.db.execute_conn(connection, UPDATE_EMAIL, (new_email, user_id))
+
+    async def update_user_username_conn(self, connection: asyncpg.Connection, user_id: UUID, new_username: str) -> None:
+        await self.db.execute_conn(connection, UPDATE_USERNAME, (new_username, user_id))
 
     async def update_user_password_conn(self, connection: asyncpg.Connection, user_id: UUID, new_password: bytes, new_salt: bytes) -> None:
         await self.db.execute_conn(connection, UPDATE_PASSWORD, (new_password, new_salt, user_id))
@@ -100,7 +115,7 @@ class UserRepository:
     async def hard_delete_user_conn(self, connection: asyncpg.Connection, user_id: UUID) -> None:
         await self.db.execute_conn(connection, HARD_DELETE_USER_BY_ID, (user_id,))
     
-    # Pagination Operation
+    # Pagination Operations
     async def list_users(self, limit: int, offset: int) -> list[User]:
         results = await self.db.fetch_all(LIST_USERS, (limit, offset))
         return [self._to_user(row) for row in results]
@@ -109,9 +124,22 @@ class UserRepository:
         results = await self.db.fetch_all(LIST_USERS_ROLE, (role_id, limit, offset))
         return [self._to_user(row) for row in results]
     
+    async def list_users_by_status(self, status: str, limit: int, offset: int) -> list[User]:
+        results = await self.db.fetch_all(LIST_USERS_BY_STATUS, (status, limit, offset))
+        return [self._to_user(row) for row in results]
+    
     async def count_users(self) -> int:
         result = await self.db.fetch_value(COUNT_USERS)
         return int(result) if result else 0
+    
+    async def count_users_by_role(self, role_id: UUID) -> int:
+        result = await self.db.fetch_value(COUNT_USERS_BY_ROLE, (role_id,))
+        return int(result) if result else 0
+    
+    async def search_users(self, search_term: str, limit: int, offset: int) -> list[User]:
+        like_pattern = f"%{search_term}%"
+        results = await self.db.fetch_all(SEARCH_USERS, (like_pattern, limit, offset))
+        return [self._to_user(row) for row in results]
     
     # May need transactional versions of pagination and count methods
     # May need the count to be accurate within a transaction for metadata purposes

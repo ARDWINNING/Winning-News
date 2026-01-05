@@ -10,7 +10,14 @@ from .queries import (
     GET_SESSION_BY_HASH,
     CREATE_SESSION,
     DELETE_SESSION_BY_ID,
+    DELETE_SESSIONS_BY_USER,
+    DELETE_EXPIRED_SESSIONS,
+    LIST_SESSIONS,
+    LIST_ACTIVE_SESSIONS,
     LIST_EXPIRED_SESSIONS,
+    COUNT_SESSIONS,
+    COUNT_ACTIVE_SESSIONS,
+    COUNT_EXPIRED_SESSIONS,
 )
 
 class SessionsRepository:
@@ -47,18 +54,51 @@ class SessionsRepository:
     async def delete_session_by_id(self, session_id: UUID) -> None:
         await self.db.execute(DELETE_SESSION_BY_ID, (session_id,))
 
+    async def delete_sessions_by_user(self, user_id: UUID) -> None:
+        await self.db.execute(DELETE_SESSIONS_BY_USER, (user_id,))
+
+    async def delete_expired_sessions(self) -> None:
+        await self.db.execute(DELETE_EXPIRED_SESSIONS)
+
     # Transactional Delete Operation
     async def delete_session_by_id_conn(self, connection: asyncpg.Connection, session_id: UUID) -> None:
         await self.db.execute_conn(connection, DELETE_SESSION_BY_ID, (session_id,))
 
-    # List Operation
+    # Pagination Operations
+    async def list_sessions(self) -> list[Session]:
+        rows = await self.db.fetch_all(LIST_SESSIONS)
+        return [self._to_session(row) for row in rows]
+
+    async def list_active_sessions(self) -> list[Session]:
+        rows = await self.db.fetch_all(LIST_ACTIVE_SESSIONS)
+        return [self._to_session(row) for row in rows]
+    
     async def list_expired_sessions(self) -> list[Session]:
         rows = await self.db.fetch_all(LIST_EXPIRED_SESSIONS)
         return [self._to_session(row) for row in rows]
     
-    # Transactional List Operation
+    async def count_sessions(self) -> int:
+        result = await self.db.fetch_value(COUNT_SESSIONS)
+        return int(result) if result else 0
+    
+    async def count_active_sessions(self) -> int:
+        result = await self.db.fetch_value(COUNT_ACTIVE_SESSIONS)
+        return int(result) if result else 0
+    
+    async def count_expired_sessions(self) -> int:
+        result = await self.db.fetch_value(COUNT_EXPIRED_SESSIONS)
+        return int(result) if result else 0
+    
+    # Transactional Pagination Operations
     async def list_expired_sessions_conn(self, connection: asyncpg.Connection) -> list[Session]:
         rows = await self.db.fetch_all_conn(connection, LIST_EXPIRED_SESSIONS)
         return [self._to_session(row) for row in rows]
+    
+    async def count_expired_sessions_conn(self, connection: asyncpg.Connection) -> int:
+        result = await self.db.fetch_value_conn(connection, COUNT_EXPIRED_SESSIONS)
+        return int(result) if result else 0
+    
+
+
 
     
